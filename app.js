@@ -76,100 +76,24 @@ function resetAll() {
 resetAll();
 
 // ===== File loading =====
-   // Configure pdf.js worker
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
-
-        let targetText = '';
-
-        // Normalize text by trimming and removing excessive whitespace
-        function normalizeText(text) {
-            return text.replace(/\s+/g, ' ').trim();
-        }
-
-        // Render extracted text to the output div
-        function renderTarget() {
-            const outputDiv = document.getElementById('output');
-            outputDiv.textContent = targetText || 'No text found.';
-        }
-
-        // Extract text from PDF using pdf.js
-        async function extractPdfTextWithPdfJs(file) {
-            const fileReader = new FileReader();
-            return new Promise((resolve, reject) => {
-                fileReader.onload = async function(e) {
-                    try {
-                        const arrayBuffer = e.target.result;
-                        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                        let text = '';
-                        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                            const page = await pdf.getPage(pageNum);
-                            const textContent = await page.getTextContent();
-                            textContent.items.forEach(item => {
-                                text += item.str + ' ';
-                            });
-                            text += '\n';
-                        }
-                        resolve(text);
-                    } catch (error) {
-                        reject(error);
-                    }
-                };
-                fileReader.readAsArrayBuffer(file);
-            });
-        }
-
-        // Extract text from DOCX using docx4js
-        async function extractDocxText(file) {
-            const fileReader = new FileReader();
-            return new Promise((resolve, reject) => {
-                fileReader.onload = async function(e) {
-                    try {
-                        const arrayBuffer = e.target.result;
-                        const doc = await docx4js.load(arrayBuffer);
-                        let text = '';
-                        doc.officeDocument.content('w\\:p').each(function() {
-                            const paragraphText = this.text().trim();
-                            if (paragraphText) {
-                                text += paragraphText + '\n';
-                            }
-                        });
-                        resolve(text);
-                    } catch (error) {
-                        reject(error);
-                    }
-                };
-                fileReader.readAsArrayBuffer(file);
-            });
-        }
-
-        // Event listener for the load button
-        const fileInput = document.getElementById('fileInput');
-        const loadFileBtn = document.getElementById('loadFileBtn');
-        const loadedCount = document.getElementById('loadedCount');
-
-        loadFileBtn.addEventListener("click", async () => {
-            const file = fileInput.files[0];
-            if (!file) return alert("Select a DOCX or PDF.");
-            const ext = file.name.toLowerCase().split(".").pop();
-            try {
-                let extracted = "";
-                if (ext === "pdf") {
-                    extracted = await extractPdfTextWithPdfJs(file);
-                } else if (ext === "docx" || ext === "doc") {
-                    extracted = await extractDocxText(file);
-                } else {
-                    return alert("Unsupported file type. Please upload a .docx or .pdf file.");
-                }
-                const cleaned = normalizeText(extracted || "");
-                if (!cleaned) return alert("No text found.");
-                targetText = cleaned;
-                loadedCount.textContent = `Character count: ${targetText.length}`;
-                renderTarget();
-            } catch (e) {
-                console.error(e);
-                alert("Error extracting text: " + e.message);
-            }
-        });
+loadFileBtn.addEventListener("click", async () => {
+  const file = fileInput.files[0];
+  if (!file) return alert("Select a DOCX or PDF.");
+  const ext = file.name.toLowerCase().split(".").pop();
+  try {
+    let extracted = "";
+    if (ext === "pdf") extracted = await extractPdfTextWithPdfJs(file);
+    else if (ext === "docx" || ext === "doc") {
+      const docToText = new DocToText();
+      extracted = await docToText.extractToText(file, ext);
+    } else return alert("Unsupported.");
+    const cleaned = normalizeText(extracted || "");
+    if (!cleaned) return alert("No text found.");
+    targetText = cleaned;
+    loadedCount.textContent = targetText.length;
+    renderTarget();
+  } catch (e) { console.error(e); alert("Error extracting."); }
+});
 
 // ===== PDF.js + OCR fallback =====
 async function extractPdfTextWithPdfJs(file) {
@@ -258,4 +182,3 @@ async function saveResult({ name, wpm, accuracy, errors, durationSec }) {
     });
   });
 })();
-
