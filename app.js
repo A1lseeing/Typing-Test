@@ -1,281 +1,180 @@
-// --- Elements ---
+// ===== Elements =====
+const accessCodeInput = document.getElementById("accessCodeInput");
+const accessBtn = document.getElementById("accessBtn");
+const accessStatus = document.getElementById("accessStatus");
+
 const nameInput = document.getElementById("nameInput");
 const durationInput = document.getElementById("durationInput");
 const useSampleBtn = document.getElementById("useSampleBtn");
 const fileInput = document.getElementById("fileInput");
 const loadFileBtn = document.getElementById("loadFileBtn");
 const loadedCount = document.getElementById("loadedCount");
-
 const targetTextEl = document.getElementById("targetText");
 const typingArea = document.getElementById("typingArea");
 const startBtn = document.getElementById("startBtn");
 const resetBtn = document.getElementById("resetBtn");
-
 const timeLeftEl = document.getElementById("timeLeft");
 const wpmEl = document.getElementById("wpm");
 const accuracyEl = document.getElementById("accuracy");
 const errorsEl = document.getElementById("errors");
-
 const leaderboardList = document.getElementById("leaderboardList");
 
-// --- State ---
-let targetText = "";
-let timerId = null;
-let timeLeft = 0;
-let startedAt = 0;
-
-let totalTyped = 0;       // total keystrokes considered (characters typed)
-let correctTyped = 0;     // correctly matched characters
-let errors = 0;           // incorrect committed characters
-
-let lastInputLength = 0;  // for counting new keystrokes
-let finished = false;
-
-// --- Sample text ---
-const sampleText =
-  "The quick brown fox jumps over the lazy dog. Typing tests measure speed and accuracy. " +
-  "Try to keep your eyes on the text and type smoothly without looking at the keyboard.";
-
-// --- Utilities ---
-
-// Normalize text for comparison: collapse whitespace, unify newlines
-function normalizeText(s) {
-  return s.replace(/\r/g, "").replace(/\s+/g, " ").trim();
+// ===== Access Code Logic =====
+const ACCESS_CODE = "TYPE-2025"; // Change to your code
+let unlocked = false;
+function setLockedUI(isLocked) {
+  document.querySelectorAll(".user-setup input, .user-setup button, .text-source input, .text-source button, .test-area textarea, .test-area button")
+    .forEach(el => el.disabled = isLocked);
 }
-
-// Compute WPM using standard 5-characters-per-word, normalized by elapsed minutes.
-// Uses correct characters only (aligned with many platforms' 'wpm')[2].
-function computeWPM(correctCharCount, elapsedMs) {
-  const minutes = elapsedMs / 60000;
-  if (minutes <= 0) return 0;
-  return Math.round((correctCharCount / 5) / minutes);
-}
-
-// Accuracy = correct entries / total entries × 100%[6][9][12][15][18].
-function computeAccuracy(correctCharCount, totalCharCount) {
-  if (totalCharCount === 0) return 100;
-  return Math.max(0, Math.min(100, Math.round((correctCharCount / totalCharCount) * 100)));
-}
-
-// Re-render target with coloring to show correctness
-function renderTarget(progressLen) {
-  const t = targetText;
-  const typed = typingArea.value;
-  const parts = [];
-  for (let i = 0; i < t.length; i++) {
-    const ch = t[i];
-    if (i < typed.length) {
-      const ok = typed[i] === ch;
-      parts.push(`<span style="color:${ok ? '#22c55e' : '#ef4444'}">${escapeHtml(ch)}</span>`);
-    } else {
-      parts.push(`<span>${escapeHtml(ch)}</span>`);
-    }
+setLockedUI(true);
+accessBtn.addEventListener("click", () => {
+  if (accessCodeInput.value.trim() === ACCESS_CODE) {
+    unlocked = true;
+    setLockedUI(false);
+    accessStatus.textContent = "Access granted.";
+    accessStatus.style.color = "#22c55e";
+  } else {
+    unlocked = false;
+    setLockedUI(true);
+    accessStatus.textContent = "Invalid code.";
+    accessStatus.style.color = "#ef4444";
   }
-  targetTextEl.innerHTML = parts.join("");
+});
+
+// ===== State =====
+let targetText = "";
+let timerId, timeLeft, startedAt;
+let totalTyped, correctTyped, errors, lastInputLength, finished;
+const sampleText = "The quick brown fox jumps over the lazy dog.";
+
+// ===== Utils =====
+function normalizeText(s) { return s.replace(/\r/g, "").replace(/\s+/g, " ").trim(); }
+function computeWPM(chars, elapsedMs) { const m = elapsedMs / 60000; return m > 0 ? Math.round((chars / 5) / m) : 0; }
+function computeAccuracy(c, t) { return t > 0 ? Math.round((c / t) * 100) : 100; }
+function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c])); }
+function renderTarget() {
+  targetTextEl.innerHTML = [...targetText].map((ch, i) =>
+    i < typingArea.value.length
+      ? `<span style="color:${typingArea.value[i] === ch ? '#22c55e' : '#ef4444'}">${escapeHtml(ch)}</span>`
+      : `<span>${escapeHtml(ch)}</span>`
+  ).join("");
 }
 
-// Escape HTML for safe rendering
-function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, c => (
-    { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]
-  ));
-}
-
-// Reset state
+// ===== Reset =====
 function resetAll() {
   clearInterval(timerId);
-  timerId = null;
   timeLeft = Number(durationInput.value || 60);
   timeLeftEl.textContent = timeLeft;
-
-  startedAt = 0;
-  totalTyped = 0;
-  correctTyped = 0;
-  errors = 0;
-  lastInputLength = 0;
+  startedAt = totalTyped = correctTyped = errors = lastInputLength = 0;
   finished = false;
-
-  typingArea.value = "";
-  typingArea.disabled = true;
-  startBtn.disabled = false;
-  resetBtn.disabled = true;
-
-  wpmEl.textContent = "0";
-  accuracyEl.textContent = "100";
-  errorsEl.textContent = "0";
-
-  if (!targetText) {
-    targetText = sampleText;
-  }
-  renderTarget(0);
+  typingArea.value = ""; typingArea.disabled = true;
+  startBtn.disabled = false; resetBtn.disabled = true;
+  wpmEl.textContent = "0"; accuracyEl.textContent = "100"; errorsEl.textContent = "0";
+  if (!targetText) targetText = sampleText;
+  renderTarget();
 }
-
 resetAll();
 
-// --- File loading (docx/pdf) ---
+// ===== File loading =====
 loadFileBtn.addEventListener("click", async () => {
-  const file = fileInput.files && fileInput.files[0];
-  if (!file) {
-    alert("Please choose a DOCX or PDF file first.");
-    return;
-  }
-
+  const file = fileInput.files[0];
+  if (!file) return alert("Select a DOCX or PDF.");
+  const ext = file.name.toLowerCase().split(".").pop();
   try {
-    const docToText = new DocToText(); // from docs-to-text
-    const ext = file.name.toLowerCase().split(".").pop();
-    const text = await docToText.extractToText(file, ext);
-    const cleaned = normalizeText(text);
-    if (!cleaned) {
-      alert("Could not extract text from this file.");
-      return;
-    }
+    let extracted = "";
+    if (ext === "pdf") extracted = await extractPdfTextWithPdfJs(file);
+    else if (ext === "docx" || ext === "doc") {
+      const docToText = new DocToText();
+      extracted = await docToText.extractToText(file, ext);
+    } else return alert("Unsupported.");
+    const cleaned = normalizeText(extracted || "");
+    if (!cleaned) return alert("No text found.");
     targetText = cleaned;
-    loadedCount.textContent = String(targetText.length);
-    renderTarget(0);
-  } catch (err) {
-    console.error(err);
-    alert("Failed to extract text. Try another file or use the sample text.");
+    loadedCount.textContent = targetText.length;
+    renderTarget();
+  } catch (e) { console.error(e); alert("Error extracting."); }
+});
+
+// ===== PDF.js + OCR fallback =====
+async function extractPdfTextWithPdfJs(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const texts = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    let txt = (await page.getTextContent()).items.map(obj => obj.str).join(" ").trim();
+    if (!txt) {
+      const vp = page.getViewport({ scale: 2.0 });
+      const canvas = document.createElement("canvas");
+      canvas.height = vp.height; canvas.width = vp.width;
+      await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+      const ocrResult = await Tesseract.recognize(canvas, "eng");
+      txt = ocrResult.data.text.trim();
+    }
+    texts.push(txt);
   }
-});
+  return texts.join("\n\n");
+}
 
-// Use sample text
-useSampleBtn.addEventListener("click", () => {
-  targetText = sampleText;
-  loadedCount.textContent = "0";
-  renderTarget(0);
-});
-
-// --- Start/Reset ---
+// ===== Buttons =====
+useSampleBtn.addEventListener("click", () => { targetText = sampleText; loadedCount.textContent = "0"; renderTarget(); });
 startBtn.addEventListener("click", () => {
-  if (!nameInput.value.trim()) {
-    alert("Please enter a name.");
-    return;
-  }
-  if (!targetText || targetText.length === 0) {
-    alert("Please load a text or use the sample text.");
-    return;
-  }
-
-  resetAll(); // ensure clean start but keep targetText
-  typingArea.disabled = false;
-  typingArea.focus();
-  startBtn.disabled = true;
-  resetBtn.disabled = false;
-
+  if (!unlocked) return alert("Enter access code first!");
+  if (!nameInput.value.trim()) return alert("Enter a name.");
+  if (!targetText) return alert("Load text or use sample.");
+  resetAll();
+  typingArea.disabled = false; typingArea.focus();
+  startBtn.disabled = true; resetBtn.disabled = false;
   startedAt = Date.now();
   timerId = setInterval(tick, 1000);
 });
+resetBtn.addEventListener("click", resetAll);
 
-resetBtn.addEventListener("click", () => {
-  resetAll();
-});
-
-// --- Typing handling ---
+// Typing
 typingArea.addEventListener("input", () => {
   if (finished) return;
-
   const input = typingArea.value;
-
-  // Count only newly typed characters (not deletions)
-  const delta = Math.max(0, input.length - lastInputLength);
-  totalTyped += delta;
+  totalTyped += Math.max(0, input.length - lastInputLength);
   lastInputLength = input.length;
-
-  // Compare char-by-char up to the length of input
-  let localCorrect = 0;
-  let localErrors = 0;
-  const n = Math.min(input.length, targetText.length);
-
-  for (let i = 0; i < n; i++) {
-    if (input[i] === targetText[i]) localCorrect++;
-    else localErrors++;
+  correctTyped = errors = 0;
+  for (let i = 0; i < input.length; i++) {
+    if (input[i] === targetText[i]) correctTyped++; else errors++;
   }
-  // Any extra typed beyond target counts as errors
-  if (input.length > targetText.length) {
-    localErrors += (input.length - targetText.length);
-  }
-
-  correctTyped = localCorrect;
-  errors = localErrors;
-
-  renderTarget(input.length);
-
-  // Update live stats
-  const elapsed = Math.max(1, Date.now() - startedAt);
-  const wpm = computeWPM(correctTyped, elapsed);
-  const acc = computeAccuracy(correctTyped, totalTyped);
-
-  wpmEl.textContent = String(wpm);
-  accuracyEl.textContent = String(acc);
-  errorsEl.textContent = String(errors);
-
-  // End early if the user finished the text
-  if (input.length >= targetText.length) {
-    finishTest();
-  }
+  renderTarget();
+  const elapsed = Date.now() - startedAt;
+  wpmEl.textContent = computeWPM(correctTyped, elapsed);
+  accuracyEl.textContent = computeAccuracy(correctTyped, totalTyped);
+  errorsEl.textContent = errors;
+  if (input.length >= targetText.length) finishTest();
 });
 
-// --- Timer ---
-function tick() {
-  timeLeft -= 1;
-  timeLeftEl.textContent = String(timeLeft);
-  if (timeLeft <= 0) {
-    finishTest();
-  }
-}
-
+function tick() { if (--timeLeft <= 0) finishTest(); timeLeftEl.textContent = timeLeft; }
 function finishTest() {
-  if (finished) return;
-  finished = true;
-  clearInterval(timerId);
-  timerId = null;
-  typingArea.disabled = true;
-
-  const elapsed = Math.max(1, Date.now() - startedAt);
-  const wpm = computeWPM(correctTyped, elapsed);
+  if (finished) return; finished = true;
+  clearInterval(timerId); typingArea.disabled = true;
+  const wpm = computeWPM(correctTyped, Date.now() - startedAt);
   const acc = computeAccuracy(correctTyped, totalTyped);
-
-  // Save result to Firestore for leaderboard
-  saveResult({
-    name: nameInput.value.trim(),
-    wpm,
-    accuracy: acc,
-    errors,
-    durationSec: Number(durationInput.value || 60)
-  });
-
+  saveResult({ name: nameInput.value.trim(), wpm, accuracy: acc, errors, durationSec: Number(durationInput.value) });
   alert(`Finished!\nWPM: ${wpm}\nAccuracy: ${acc}%\nErrors: ${errors}`);
 }
 
-// --- Leaderboard (Firestore) ---
+// ===== Firebase save + leaderboard =====
 const { db, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } = window.__db;
+const FIRESTORE_ACCESS_CODE = "TYPE-2025"; // must match Firestore rules
 
 async function saveResult({ name, wpm, accuracy, errors, durationSec }) {
-  try {
-    await addDoc(collection(db, "typingResults"), {
-      name,
-      wpm,
-      accuracy,
-      errors,
-      durationSec,
-      createdAt: serverTimestamp()
-    });
-  } catch (e) {
-    console.error("Failed to save result:", e);
-  }
+  await addDoc(collection(db, "typingResults"), {
+    name, wpm, accuracy, errors, durationSec,
+    createdAt: serverTimestamp(),
+    accessCode: FIRESTORE_ACCESS_CODE
+  });
 }
 
-// subscribe to top 5 by wpm desc, accuracy desc
 (function subscribeLeaderboard() {
-  const q = query(
-    collection(db, "typingResults"),
-    orderBy("wpm", "desc"),
-    orderBy("accuracy", "desc"),
-    limit(5)
-  );
+  const q = query(collection(db, "typingResults"), orderBy("wpm", "desc"), orderBy("accuracy", "desc"), limit(5));
   onSnapshot(q, (snap) => {
     leaderboardList.innerHTML = "";
-    snap.forEach((doc) => {
+    snap.forEach(doc => {
       const d = doc.data();
       const li = document.createElement("li");
       li.textContent = `${d.name} — ${d.wpm} WPM, ${d.accuracy}% acc, errors: ${d.errors}`;
