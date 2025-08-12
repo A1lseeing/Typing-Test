@@ -1,0 +1,103 @@
+<html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Typing Test with Leaderboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+  <!-- Firebase App (modular SDK v9+) -->
+  <script type="module">
+    // You will paste your Firebase config below in the script tag before app.js
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1>Typing Test</h1>
+
+    <section class="user-setup">
+      <label>Name</label>
+      <input id="nameInput" type="text" placeholder="Enter your name" />
+      <label>Duration (seconds)</label>
+      <input id="durationInput" type="number" value="60" min="15" step="5" />
+    </section>
+
+    <section class="text-source">
+      <h2>Text Source</h2>
+      <p>Option A: Use built-in sample text</p>
+      <button id="useSampleBtn">Use Sample Text</button>
+
+      <p>Option B: Upload a DOCX or PDF—your accuracy will compare to the extracted text</p>
+      <input id="fileInput" type="file" accept=".doc,.docx,application/pdf" />
+      <button id="loadFileBtn">Load File Text</button>
+      <p class="hint">Loaded characters: <span id="loadedCount">0</span></p>
+    </section>
+
+    <section class="test-area">
+      <h2>Test</h2>
+      <div id="targetText" class="target-text"></div>
+      <textarea id="typingArea" placeholder="Click Start, then begin typing..." disabled></textarea>
+      <div class="controls">
+        <button id="startBtn">Start</button>
+        <button id="resetBtn" disabled>Reset</button>
+      </div>
+    </section>
+
+    <section class="stats">
+      <h2>Live Stats</h2>
+      <div class="stat-grid">
+        <div>Time Left: <strong><span id="timeLeft">0</span>s</strong></div>
+        <div>WPM: <strong><span id="wpm">0</span></strong></div>
+        <div>Accuracy: <strong><span id="accuracy">100</span>%</strong></div>
+        <div>Errors: <strong><span id="errors">0</span></strong></div>
+      </div>
+    </section>
+
+    <section class="leaderboard">
+      <h2>Top 5 Leaderboard</h2>
+      <ol id="leaderboardList"></ol>
+    </section>
+  </div>
+
+  <!-- docsToText for in-browser text extraction from docx/pdf -->
+  <script src="https://cdn.jsdelivr.net/npm/docs-to-text/dist/docs-to-text.min.js"></script>
+  <!-- PDF.js fallback (optional, in case you prefer explicit PDF parsing) -->
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script> -->
+
+  <!-- Firebase SDKs -->
+  <script type="module">
+    // 1) Replace with your Firebase project config (Firestore enabled)
+    // Create a project at console.firebase.google.com, add a Web app, and copy config here.
+    const firebaseConfig = {
+      apiKey: "AIzaSyAkDWYG3xLioSQDk_g9oNoV_JhK1L6xIjY",
+    authDomain: "typing101-d42f3.firebaseapp.com",
+    projectId: "typing101-d42f3",
+    storageBucket: "typing101-d42f3.firebasestorage.app",
+    messagingSenderId: "911300314480",
+    appId: "1:911300314480:web:ea3811fd2a1acce86fbbb5",
+    measurementId: "G-E6184L4XXE"
+    };
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+    import {
+      getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Expose Firestore helpers to app.js
+    window.__db = {
+      db,
+      collection,
+      addDoc,
+      query,
+      orderBy,
+      limit,
+      onSnapshot,
+      serverTimestamp
+    };
+  </script>
+
+  <script src="app.js"></script>
+</body>
+</html>
