@@ -1,18 +1,23 @@
-<html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Typing Test with Leaderboard</title>
+  <title>Typing Test with Access Code & Leaderboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
-  <!-- Firebase App (modular SDK v9+) -->
-  <script type="module">
-    // You will paste your Firebase config below in the script tag before app.js
-  </script>
 </head>
 <body>
   <div class="container">
     <h1>Typing Test</h1>
+
+    <!-- Access gate -->
+    <section class="access-gate">
+      <h2>Access</h2>
+      <label>Enter Access Code</label>
+      <input id="accessCodeInput" type="password" placeholder="Enter code to unlock" />
+      <button id="accessBtn">Unlock</button>
+      <p id="accessStatus" class="hint"></p>
+    </section>
 
     <section class="user-setup">
       <label>Name</label>
@@ -26,7 +31,7 @@
       <p>Option A: Use built-in sample text</p>
       <button id="useSampleBtn">Use Sample Text</button>
 
-      <p>Option B: Upload a DOCX or PDF—your accuracy will compare to the extracted text</p>
+      <p>Option B: Upload a DOCX or PDF</p>
       <input id="fileInput" type="file" accept=".doc,.docx,application/pdf" />
       <button id="loadFileBtn">Load File Text</button>
       <p class="hint">Loaded characters: <span id="loadedCount">0</span></p>
@@ -35,7 +40,7 @@
     <section class="test-area">
       <h2>Test</h2>
       <div id="targetText" class="target-text"></div>
-      <textarea id="typingArea" placeholder="Click Start, then begin typing..." disabled></textarea>
+      <textarea id="typingArea" placeholder="Click Start, then type..." disabled></textarea>
       <div class="controls">
         <button id="startBtn">Start</button>
         <button id="resetBtn" disabled>Reset</button>
@@ -56,18 +61,28 @@
       <h2>Top 5 Leaderboard</h2>
       <ol id="leaderboardList"></ol>
     </section>
+
+    <!-- Privacy -->
+    <section style="margin-top:16px;font-size:14px;line-height:1.5;background:#0b1220;border:1px solid #374151;border-radius:8px;padding:12px;">
+      <h3 style="margin:0 0 8px 0;font-size:16px;">Privacy & Data</h3>
+      <p>
+        This app stores typing results (name, WPM, accuracy, error count, duration, timestamp) to a public leaderboard. Uploaded files are processed in-browser only.
+      </p>
+    </section>
   </div>
 
-  <!-- docsToText for in-browser text extraction from docx/pdf -->
+  <!-- External libs -->
   <script src="https://cdn.jsdelivr.net/npm/docs-to-text/dist/docs-to-text.min.js"></script>
-  <!-- PDF.js fallback (optional, in case you prefer explicit PDF parsing) -->
-  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script> -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js";
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-  <!-- Firebase SDKs -->
+  <!-- Firebase -->
   <script type="module">
-    // 1) Replace with your Firebase project config (Firestore enabled)
-    // Create a project at console.firebase.google.com, add a Web app, and copy config here.
     const firebaseConfig = {
+      // !! Replace with your Firebase config !!
       apiKey: "AIzaSyAkDWYG3xLioSQDk_g9oNoV_JhK1L6xIjY",
     authDomain: "typing101-d42f3.firebaseapp.com",
     projectId: "typing101-d42f3",
@@ -76,42 +91,16 @@
     appId: "1:911300314480:web:ea3811fd2a1acce86fbbb5",
     measurementId: "G-E6184L4XXE"
     };
-
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
     import {
       getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
-
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-
-    // Expose Firestore helpers to app.js
-    window.__db = {
-      db,
-      collection,
-      addDoc,
-      query,
-      orderBy,
-      limit,
-      onSnapshot,
-      serverTimestamp
-    };
+    window.__db = { db, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp };
   </script>
 
+  <!-- Main app -->
   <script src="app.js"></script>
-  <section style="margin-top:16px;font-size:14px;line-height:1.5;background:#0b1220;border:1px solid #374151;border-radius:8px;padding:12px;">
-  <h3 style="margin:0 0 8px 0;font-size:16px;">Privacy & Data</h3>
-  <p>
-    This app stores typing test results (name, WPM, accuracy, error count, duration, timestamp) to a shared online leaderboard.
-    Results are publicly visible to anyone who opens the site. No account or email is required or collected. Uploaded DOCX/PDF
-    files are processed locally in the browser to extract text for accuracy comparison and are not uploaded to a server. Do not
-    use confidential documents.
-  </p>
-  <p>
-    To request removal of a leaderboard entry, contact: your-email@example.com. By using this site, you consent to the public
-    display of the above result fields. For more on Firestore security rules and data validation, see Firebase documentation.
-  </p>
-</section>
 </body>
 </html>
-
